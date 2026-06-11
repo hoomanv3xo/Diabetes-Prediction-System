@@ -1,7 +1,10 @@
 import streamlit as st
-import numpy as np
 import pandas as pd
-import pickle
+import numpy as np
+
+from sklearn.model_selection import train_test_split
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics import accuracy_score
 
 # --------------------------------------------------
 # PAGE CONFIG
@@ -14,124 +17,156 @@ st.set_page_config(
 )
 
 # --------------------------------------------------
-# LOAD MODEL
+# LOAD DATA & TRAIN MODEL
 # --------------------------------------------------
 
 @st.cache_resource
 def load_model():
-    with open("trained_model.sav", "rb") as file:
-        model = pickle.load(file)
-    return model
 
-loaded_model = load_model()
+    df = pd.read_csv("diabetes.csv")
 
-# --------------------------------------------------
-# CUSTOM CSS
-# --------------------------------------------------
+    X = df.drop("Outcome", axis=1)
+    y = df["Outcome"]
 
-st.markdown("""
-<style>
-.main-header{
-    text-align:center;
-    padding:1rem;
-}
+    X_train, X_test, y_train, y_test = train_test_split(
+        X,
+        y,
+        test_size=0.2,
+        random_state=42
+    )
 
-.result-box{
-    padding:15px;
-    border-radius:10px;
-    margin-top:10px;
-}
-</style>
-""", unsafe_allow_html=True)
+    model = RandomForestClassifier(
+        n_estimators=200,
+        random_state=42
+    )
+
+    model.fit(X_train, y_train)
+
+    predictions = model.predict(X_test)
+
+    accuracy = accuracy_score(
+        y_test,
+        predictions
+    )
+
+    return model, accuracy, df
+
+
+model, accuracy, df = load_model()
 
 # --------------------------------------------------
 # HEADER
 # --------------------------------------------------
 
-st.markdown(
-    "<h1 class='main-header'>🩺 Diabetes Prediction System</h1>",
-    unsafe_allow_html=True
-)
-
-st.markdown(
-    "<center>Machine Learning Based Diabetes Risk Assessment</center>",
-    unsafe_allow_html=True
-)
+st.title("🩺 Diabetes Prediction System")
+st.markdown("Machine Learning Based Diabetes Risk Assessment")
 
 st.divider()
 
 # --------------------------------------------------
-# SIDEBAR
+# DATASET INFORMATION
 # --------------------------------------------------
 
-with st.sidebar:
+st.header("📊 Dataset Information")
 
-    st.header("📊 Model Information")
+col1, col2, col3 = st.columns(3)
 
-    st.success("Model Loaded Successfully")
+with col1:
+    st.metric(
+        "Patient Records",
+        len(df)
+    )
 
-    st.write("**Algorithm:**")
-    st.info("Random Forest Classifier")
+with col2:
+    st.metric(
+        "Features",
+        len(df.columns) - 1
+    )
 
-    st.write("**Dataset:**")
-    st.info("Diabetes Dataset")
+with col3:
+    st.metric(
+        "Model Accuracy",
+        f"{accuracy:.2%}"
+    )
 
-    st.write("**Input Units:**")
-
-    st.markdown("""
-- Glucose → mg/dL
-- Blood Pressure → mmHg (Diastolic)
-- Skin Thickness → mm
-- Insulin → μU/mL
-- BMI → kg/m²
-- Age → years
-""")
+st.success(
+    f"Model trained successfully using {len(df)} records from diabetes.csv"
+)
 
 # --------------------------------------------------
-# INPUT SECTION
+# DATASET PREVIEW
+# --------------------------------------------------
+
+with st.expander("📄 View Dataset Preview"):
+
+    st.dataframe(
+        df.head(20),
+        use_container_width=True
+    )
+
+# --------------------------------------------------
+# DATASET STATISTICS
+# --------------------------------------------------
+
+with st.expander("📈 Dataset Statistics"):
+
+    st.dataframe(
+        df.describe(),
+        use_container_width=True
+    )
+
+# --------------------------------------------------
+# OUTCOME DISTRIBUTION
+# --------------------------------------------------
+
+st.subheader("Outcome Distribution")
+
+outcome_counts = df["Outcome"].value_counts()
+
+st.bar_chart(outcome_counts)
+
+st.divider()
+
+# --------------------------------------------------
+# PATIENT INPUT
 # --------------------------------------------------
 
 st.header("👤 Patient Information")
 
-col1, col2 = st.columns(2)
+left, right = st.columns(2)
 
-with col1:
+with left:
 
     Pregnancies = st.number_input(
         "Pregnancies (count)",
         min_value=0,
-        value=1,
-        help="Number of pregnancies."
+        value=1
     )
 
     Glucose = st.number_input(
         "Glucose (mg/dL)",
         min_value=0.0,
-        value=120.0,
-        help="Plasma glucose concentration."
+        value=120.0
     )
 
     BloodPressure = st.number_input(
         "Diastolic Blood Pressure (mmHg)",
         min_value=0.0,
-        value=80.0,
-        help="Bottom number in BP reading. Example: 120/80 → enter 80."
+        value=80.0
     )
 
     SkinThickness = st.number_input(
         "Skin Thickness (mm)",
         min_value=0.0,
-        value=20.0,
-        help="Triceps skin fold thickness."
+        value=20.0
     )
 
-with col2:
+with right:
 
     Insulin = st.number_input(
         "Insulin (μU/mL)",
         min_value=0.0,
-        value=80.0,
-        help="2-Hour serum insulin."
+        value=80.0
     )
 
     st.subheader("BMI Calculator")
@@ -139,56 +174,52 @@ with col2:
     weight = st.number_input(
         "Weight (kg)",
         min_value=1.0,
-        value=70.0,
-        help="Patient weight in kilograms."
+        value=70.0
     )
 
     height = st.number_input(
         "Height (m)",
         min_value=0.5,
-        value=1.75,
-        help="Patient height in metres."
+        value=1.75
     )
 
-    if height > 0:
-        BMI = weight / (height ** 2)
+    BMI = weight / (height ** 2)
 
-        st.metric(
-            "Calculated BMI",
-            f"{BMI:.1f}"
-        )
+    st.metric(
+        "Calculated BMI",
+        f"{BMI:.1f}"
+    )
 
-        if BMI < 18.5:
-            st.warning("BMI Category: Underweight")
-        elif BMI < 25:
-            st.success("BMI Category: Normal")
-        elif BMI < 30:
-            st.warning("BMI Category: Overweight")
-        else:
-            st.error("BMI Category: Obese")
-
+    if BMI < 18.5:
+        st.warning("BMI Category: Underweight")
+    elif BMI < 25:
+        st.success("BMI Category: Normal Weight")
+    elif BMI < 30:
+        st.warning("BMI Category: Overweight")
     else:
-        BMI = 25.0
+        st.error("BMI Category: Obese")
 
     DiabetesPedigreeFunction = st.number_input(
         "Diabetes Pedigree Function",
         min_value=0.0,
-        value=0.500,
-        format="%.3f",
-        help="Genetic likelihood score."
+        value=0.5,
+        format="%.3f"
     )
 
     Age = st.number_input(
         "Age (years)",
         min_value=1,
-        value=30,
-        help="Patient age."
+        value=30
     )
+
 # --------------------------------------------------
-# PREDICTION BUTTON
+# PREDICTION
 # --------------------------------------------------
 
-if st.button("🔍 Predict Diabetes", use_container_width=True):
+if st.button(
+    "🔍 Predict Diabetes",
+    use_container_width=True
+):
 
     input_data = np.array([
         Pregnancies,
@@ -201,26 +232,16 @@ if st.button("🔍 Predict Diabetes", use_container_width=True):
         Age
     ]).reshape(1, -1)
 
-    prediction = loaded_model.predict(input_data)
+    prediction = model.predict(input_data)
+
+    probability = model.predict_proba(input_data)
+
+    diabetic_probability = probability[0][1] * 100
+    healthy_probability = probability[0][0] * 100
 
     st.divider()
 
-    st.header("📈 Prediction Results")
-
-    # Some models may not support predict_proba
-    try:
-        probability = loaded_model.predict_proba(input_data)
-
-        diabetic_probability = probability[0][1] * 100
-        healthy_probability = probability[0][0] * 100
-
-    except Exception:
-        diabetic_probability = 0
-        healthy_probability = 0
-
-    # --------------------------------------------------
-    # RESULT
-    # --------------------------------------------------
+    st.header("📋 Prediction Results")
 
     if prediction[0] == 1:
 
@@ -228,7 +249,7 @@ if st.button("🔍 Predict Diabetes", use_container_width=True):
             f"⚠️ High Risk of Diabetes\n\nConfidence: {diabetic_probability:.2f}%"
         )
 
-        st.progress(min(int(diabetic_probability), 100))
+        st.progress(int(diabetic_probability))
 
     else:
 
@@ -236,103 +257,58 @@ if st.button("🔍 Predict Diabetes", use_container_width=True):
             f"✅ Low Risk of Diabetes\n\nConfidence: {healthy_probability:.2f}%"
         )
 
-        st.progress(min(int(healthy_probability), 100))
+        st.progress(int(healthy_probability))
 
-    # --------------------------------------------------
-    # PATIENT SUMMARY
-    # --------------------------------------------------
+    # ----------------------------------------------
+    # RECOMMENDATIONS
+    # ----------------------------------------------
 
-    st.subheader("📋 Patient Summary")
-
-    summary = pd.DataFrame({
-        "Parameter": [
-            "Pregnancies",
-            "Glucose",
-            "Diastolic BP",
-            "Skin Thickness",
-            "Insulin",
-            "BMI",
-            "Pedigree Function",
-            "Age"
-        ],
-        "Value": [
-            Pregnancies,
-            Glucose,
-            BloodPressure,
-            SkinThickness,
-            Insulin,
-            BMI,
-            DiabetesPedigreeFunction,
-            Age
-        ],
-        "Unit": [
-            "count",
-            "mg/dL",
-            "mmHg",
-            "mm",
-            "μU/mL",
-            "kg/m²",
-            "-",
-            "years"
-        ]
-    })
-
-    st.dataframe(
-        summary,
-        use_container_width=True
-    )
-
-    # --------------------------------------------------
-    # RISK ANALYSIS
-    # --------------------------------------------------
-
-    st.subheader("⚕️ Risk Analysis")
-
-    risks = []
-
-    if Glucose > 140:
-        risks.append("High glucose level")
+    st.subheader("💡 Health Recommendations")
 
     if BMI > 30:
-        risks.append("BMI indicates obesity")
-
-    if BloodPressure > 90:
-        risks.append("Elevated diastolic blood pressure")
-
-    if Age > 45:
-        risks.append("Age-related risk factor")
-
-    if DiabetesPedigreeFunction > 0.8:
-        risks.append("Strong family history indicator")
-
-    if len(risks) == 0:
-        st.success("No major risk factors detected.")
-    else:
-        for risk in risks:
-            st.warning(risk)
-
-    # --------------------------------------------------
-    # PROBABILITY CHART
-    # --------------------------------------------------
-
-    if diabetic_probability > 0:
-
-        st.subheader("📊 Prediction Probabilities")
-
-        chart_data = pd.DataFrame(
-            {
-                "Probability (%)": [
-                    healthy_probability,
-                    diabetic_probability
-                ]
-            },
-            index=[
-                "Non-Diabetic",
-                "Diabetic"
-            ]
+        st.info(
+            "Consider weight management strategies and regular physical activity."
         )
 
-        st.bar_chart(chart_data)
+    if Glucose > 140:
+        st.info(
+            "Discuss glucose monitoring and diabetes screening with a healthcare professional."
+        )
+
+    if BloodPressure > 90:
+        st.info(
+            "Monitor blood pressure regularly and maintain a healthy lifestyle."
+        )
+
+    if Age > 45:
+        st.info(
+            "Regular health checkups may help identify risk factors early."
+        )
+
+# --------------------------------------------------
+# FEATURE IMPORTANCE
+# --------------------------------------------------
+
+st.divider()
+
+st.header("📊 Feature Importance")
+
+importance_df = pd.DataFrame({
+    "Feature": df.drop("Outcome", axis=1).columns,
+    "Importance": model.feature_importances_
+}).sort_values(
+    by="Importance",
+    ascending=False
+)
+
+st.bar_chart(
+    importance_df.set_index("Feature")
+)
+
+st.dataframe(
+    importance_df,
+    use_container_width=True
+)
 
 # --------------------------------------------------
 # FOOTER
@@ -341,5 +317,6 @@ if st.button("🔍 Predict Diabetes", use_container_width=True):
 st.divider()
 
 st.caption(
-    "Diabetes Prediction System | Streamlit + Scikit-Learn + Random Forest"
+    "Diabetes Prediction System | Streamlit + Random Forest + BMI Calculator"
 )
+
