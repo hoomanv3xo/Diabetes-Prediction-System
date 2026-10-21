@@ -1,62 +1,64 @@
 # 🩺 Diabetes Prediction System
 
-A machine learning web application that predicts the risk of diabetes based on patient health metrics. Built with **Streamlit** and a **Random Forest Classifier** trained on the Pima Indians Diabetes dataset.
+A machine learning web app that estimates diabetes risk from patient health metrics. Built with **Streamlit** and a **Random Forest** pipeline trained on the Pima Indians Diabetes dataset (768 patients).
+
+## Performance
+
+Evaluated with stratified 5-fold cross-validation on all 768 patients:
+
+| Metric | Score |
+|---|---|
+| Accuracy | 76.9% |
+| Recall (diabetic class) | 67.9% |
+| Precision | 66.7% |
+| F1 | 67.3% |
+
+On a stratified 80/20 hold-out split: 74.7% accuracy, 66.7% recall.
+
+Recall is the headline metric because this is a screening-style problem, where missing a diabetic patient costs more than a false alarm. `class_weight="balanced"` raised cross-validated recall from about 59% to about 68% with no loss in accuracy.
 
 ## Features
 
-- Interactive web UI with real-time BMI calculator
-- Instant diabetes risk prediction with confidence scores
-- Visual probability chart (Diabetic vs Non-Diabetic)
-- Automatic risk factor analysis (glucose, BMI, blood pressure, age, family history)
-- Patient summary table for all entered values
+- Interactive UI with a real-time BMI calculator
+- Estimated diabetes probability with Low / Moderate / High risk bands (under 35%, 35–60%, over 60%)
+- Probability chart (diabetic vs non-diabetic)
+- Rule-based risk factor flags (glucose, BMI, blood pressure, age, family history)
+- Patient summary table
+- Unknown lab values can be entered as `0`; the model substitutes the training-set median
 
 ## Project Structure
 
 ```
 ├── Diabetes-prediction.py   # Streamlit web app
-├── train_model.py           # Model training script
-├── trained_model.sav        # Pre-trained Random Forest model (pickle)
-└── diabetes.csv             # Training dataset
+├── train_model.py           # Training + evaluation script
+├── trained_model.sav        # Trained pipeline (pickle)
+├── diabetes.csv             # Pima Indians Diabetes dataset (768 rows)
+└── requirements.txt
 ```
 
-## Prerequisites
-
-- Python 3.8+
-
-## Installation
-
-1. **Clone the repository**
-
-   ```bash
-   git clone <your-repo-url>
-   cd <your-repo-folder>
-   ```
-
-2. **Install dependencies**
-
-   ```bash
-   pip install streamlit scikit-learn pandas numpy
-   ```
-
-## Running the App
-
-The `trained_model.sav` file is included, so you can run the app directly without retraining:
+## Run Locally
 
 ```bash
+pip install -r requirements.txt
 streamlit run Diabetes-prediction.py
 ```
 
-Then open your browser at `http://localhost:8501`.
+Open http://localhost:8501.
 
-## Retraining the Model
-
-To retrain the model on updated data, run:
+## Retrain the Model
 
 ```bash
 python train_model.py
 ```
 
-This will print the model accuracy and overwrite `trained_model.sav`.
+This prints hold-out and cross-validated metrics and overwrites `trained_model.sav`. The pickled model must be loaded with the same scikit-learn version it was trained with (see `requirements.txt`).
+
+## Modeling Notes
+
+- **Data cleaning:** in this dataset, `0` in Glucose, BloodPressure, SkinThickness, Insulin and BMI means "not recorded" (for example, 374 of 768 Insulin values). These are replaced with the column median inside the model pipeline, so the same handling applies at prediction time.
+- **Class imbalance:** about 35% of patients are diabetic, so the forest uses balanced class weights.
+- **Model:** `RandomForestClassifier` with 200 trees and `min_samples_leaf=3`.
+- **Limitations:** the dataset is small and limited to adult female patients of Pima Indian heritage, so results should not be generalized.
 
 ## Input Features
 
@@ -68,38 +70,10 @@ This will print the model accuracy and overwrite `trained_model.sav`.
 | Skin Thickness | Triceps skin fold thickness | mm |
 | Insulin | 2-hour serum insulin | μU/mL |
 | BMI | Body mass index (auto-calculated) | kg/m² |
-| Diabetes Pedigree Function | Genetic likelihood score | — |
+| Diabetes Pedigree Function | Genetic likelihood score | n/a |
 | Age | Patient age | years |
-
-## Model Details
-
-| Property | Value |
-|---|---|
-| Algorithm | Random Forest Classifier |
-| Estimators | 200 trees |
-| Train/Test Split | 80% / 20% |
-| Random State | 42 |
-| Output | Binary (0 = Non-Diabetic, 1 = Diabetic) |
-
-## Risk Factors Detected
-
-The app automatically flags the following risk indicators:
-
-- Glucose > 140 mg/dL
-- BMI > 30 (obese)
-- Diastolic blood pressure > 90 mmHg
-- Age > 45
-- Diabetes Pedigree Function > 0.8
-
-## Dependencies
-
-| Package | Purpose |
-|---|---|
-| `streamlit` | Web application framework |
-| `scikit-learn` | Model training and prediction |
-| `pandas` | Data handling and display |
-| `numpy` | Numerical input processing |
 
 ## Disclaimer
 
-This tool is intended for **educational and informational purposes only**. It is not a substitute for professional medical advice, diagnosis, or treatment. Always consult a qualified healthcare provider for any health concerns.
+For educational and informational purposes only. Not a substitute for professional medical advice, diagnosis, or treatment.
+
