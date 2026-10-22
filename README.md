@@ -1,4 +1,6 @@
-# 🩺 Diabetes Prediction System
+# 🩺 Diabetes Prediction System   **[Live Demo](https://hooman-diabetes-prediction-system.streamlit.app/)**
+
+
 
 A machine learning web app that estimates diabetes risk from patient health metrics. Built with **Streamlit** and a **Random Forest** pipeline trained on the Pima Indians Diabetes dataset (768 patients).
 
@@ -16,7 +18,9 @@ Evaluated with stratified 5-fold cross-validation on all 768 patients:
 On a stratified 80/20 hold-out split: 74.7% accuracy, 66.7% recall.
 
 Recall is the headline metric because this is a screening-style problem, where missing a diabetic patient costs more than a false alarm. `class_weight="balanced"` raised cross-validated recall from about 59% to about 68% with no loss in accuracy.
-
+![Screenshot of the app](high-risk.png)
+![Screenshot of the app](moderate-risk.png)
+![Screenshot of the app](low-risk.png)
 ## Features
 
 - Interactive UI with a real-time BMI calculator
